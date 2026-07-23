@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
   type ButtonHTMLAttributes,
+  type MouseEventHandler,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -90,10 +91,12 @@ export function SheetCloseLink({
   href,
   children,
   className,
+  onClick,
 }: {
   href: string;
   children: ReactNode;
   className?: string;
+  onClick?: MouseEventHandler<HTMLAnchorElement>;
 }) {
   const { setOpen } = useSheetContext();
 
@@ -101,7 +104,12 @@ export function SheetCloseLink({
     <Link
       href={href}
       className={className}
-      onClick={() => setOpen(false)}
+      onClick={(event) => {
+        onClick?.(event);
+        if (!event.defaultPrevented) {
+          setOpen(false);
+        }
+      }}
     >
       {children}
     </Link>

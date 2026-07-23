@@ -1,932 +1,476 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { ArrowRight, Lock, Menu, X } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  CircleHelp,
+  FileCheck2,
+  ShieldCheck,
+} from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
-import { useDraftStore } from "@/lib/store/draft";
-import { useGenieFocus } from "@/lib/filing/useGenieFocus";
-import { formatINR } from "@/lib/filing/types";
 import { FilingLayout } from "@/components/filing/FilingLayout";
-import { EngineComputeFallback } from "@/components/filing/EngineComputeFallback";
-import {
-  Banner,
-  Button,
-  Card,
-  FilingActions,
-  ScreenTitle,
-} from "@/components/filing/ui";
+import { Button, Card } from "@/components/filing/ui";
 import { useDraftTaxCompute } from "@/lib/hooks/useDraftTaxCompute";
-import {
-  REVIEW_TABS,
-  buildReviewUrl,
-  parseReviewTab,
-  type ReviewTab,
-} from "@/lib/filing/routes";
-import {
-  getReviewTabStatuses,
-  statusDotClass,
-} from "@/lib/filing/navStatus";
+import { trackEvent } from "@/lib/analytics";
 import {
   buildDeductionChecklist,
   summarizeDeductionChecklist,
-  type DeductionStatus,
 } from "@/lib/filing/deductionChecklist";
 import {
-  buildReconciliationFlags,
   buildReconciliationStatements,
   summarizeReconciliationRows,
   type ReconciliationRow,
-  type ReconciliationRowSeverity,
 } from "@/lib/filing/reconciliation";
-import { PORTAL_ITR1_SECTIONS } from "@/lib/engine/portalSections";
+import { evaluateScopeGate } from "@/lib/filing/scopeGate";
+import { formatINR } from "@/lib/filing/types";
+import { PLANS, normalizePlanId } from "@/lib/payments/plans";
+import { useDraftStore } from "@/lib/store/draft";
 import type { ITRResult, TaxRegime } from "@/lib/engine/types";
-import { SmartSavingsFinder } from "@/components/filing/SmartSavingsFinder";
-import { BusinessIncomeCard } from "@/components/filing/BusinessIncomeCard";
-import { CapitalGainsCard } from "@/components/filing/CapitalGainsCard";
-import { HraCalculator } from "@/components/filing/wizards/HraCalculator";
-import { MultiForm16SummaryCard } from "@/components/filing/wizards/MultiForm16SummaryCard";
-import {
-  buildSavingsCoachSummary,
-  type SavingsCoachSummary,
-} from "@/lib/engine/savingsCoach";
-import { RECONCILE } from "@/lib/copy/strings";
-import {
-  is80DCashPaymentBlocked,
-  SECTION_80D_CASH_MESSAGE,
-} from "@/lib/tax/section80d";
 
-const TAB_LABELS: Record<ReviewTab, string> = {
-  import: "Import",
-  income: "Income",
-  deductions: "Deductions",
-  taxes: "Taxes",
-  summary: "Summary",
-};
+type ResultState = "refund" | "payable" | "balanced" | "incomplete" | "failed";
 
-const DEDUCTION_STATUS_STYLE: Record<
-  DeductionStatus,
-  { label: string; className: string }
-> = {
-  claimed: { label: "Claimed", className: "bg-emerald-100 text-emerald-800" },
-  "needs-proof": { label: "Needs proof", className: "bg-amber-100 text-amber-900" },
-  "not-applicable": { label: "Not applicable", className: "bg-slate-100 text-slate-600" },
-};
-
-const ROW_STYLE: Record<
-  ReconciliationRowSeverity,
-  { label: string; badge: string; dot: string }
-> = {
-  matched: {
-    label: "Matched",
-    badge: "bg-emerald-100 text-emerald-800",
-    dot: "bg-emerald-500",
-  },
-  attention: {
-    label: "Needs attention",
-    badge: "bg-amber-100 text-amber-900",
-    dot: "bg-amber-500",
-  },
-  missing: {
-    label: "Add source",
-    badge: "bg-slate-100 text-slate-600",
-    dot: "bg-slate-400",
-  },
-};
-
-const DOC_SOURCES = [
-  {
-    id: "form16",
-    label: "Form 16",
-    role: "Salary & TDS from your employer",
-    importHref: "/file/import/documents?source=form16",
-  },
-  {
-    id: "ais",
-    label: "AIS",
-    role: "What the tax department already knows",
-    importHref: "/file/import/documents?source=ais",
-  },
-  {
-    id: "form26as",
-    label: "Form 26AS",
-    role: "TDS credited against your PAN",
-    importHref: "/file/import/documents?source=form26as",
-  },
-] as const;
-
-function reconValue(value: number | undefined): string {
-  return value === undefined ? "—" : formatINR(value);
-}
-
-function ReconcileRowCard({ row }: { row: ReconciliationRow }) {
-  const style = ROW_STYLE[row.severity];
-  return (
-    <li className="rounded-xl border border-slate-200 px-3.5 py-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-          <span className={`size-2 shrink-0 rounded-full ${style.dot}`} aria-hidden />
-          {row.label}
-        </span>
-        <span
-          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${style.badge}`}
-        >
-          {style.label}
-        </span>
-      </div>
-      <dl className="mt-2.5 grid grid-cols-3 gap-2 text-center">
-        {(
-          [
-            ["Form 16", row.form16],
-            ["AIS", row.ais],
-            ["26AS", row.form26as],
-          ] as const
-        ).map(([label, value]) => (
-          <div
-            key={label}
-            className="rounded-lg bg-slate-50 px-2 py-1.5"
-          >
-            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-              {label}
-            </dt>
-            <dd className="mt-0.5 text-xs font-semibold tabular-nums text-slate-800">
-              {reconValue(value)}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <p className="mt-2 text-xs text-slate-600">{row.detail}</p>
-    </li>
-  );
-}
-
-function PaywallOverlay({ title, message }: { title?: string; message?: string }) {
-  return (
-    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-white/60 p-6 text-center backdrop-blur-sm">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 shadow-sm">
-        <Lock className="h-6 w-6 text-slate-500" aria-hidden />
-      </div>
-      <h3 className="mt-4 text-lg font-bold text-slate-900">
-        {title || "Unlock to see exact details"}
-      </h3>
-      <p className="mt-2 max-w-sm text-sm text-slate-600">
-        {message || "Choose a plan to see your full tax breakdown and fix any mismatches."}
-      </p>
-      <Button href="/file/checkout/plans" className="mt-6">
-        View plans & unlock
-      </Button>
-    </div>
-  );
-}
-
-function SkeletonRows() {
-  return (
-    <div className="space-y-2" aria-hidden>
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="h-12 animate-pulse rounded-xl bg-slate-100" />
-      ))}
-    </div>
-  );
-}
-
-function EmptyState({
-  title,
-  body,
-  ctaHref,
-  ctaLabel,
+function StatusPill({
+  children,
+  tone = "neutral",
 }: {
-  title: string;
-  body: string;
-  ctaHref: string;
-  ctaLabel: string;
+  children: React.ReactNode;
+  tone?: "good" | "warning" | "neutral";
 }) {
+  const styles = {
+    good: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    warning: "border-amber-200 bg-amber-50 text-amber-900",
+    neutral: "border-slate-200 bg-slate-50 text-slate-700",
+  };
   return (
-    <Card>
-      <h3 className="font-semibold text-slate-900">{title}</h3>
-      <p className="mt-1 text-sm text-slate-600">{body}</p>
-      <Button href={ctaHref} variant="secondary" className="mt-3 self-start">
-        {ctaLabel}
-      </Button>
+    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${styles[tone]}`}>
+      {children}
+    </span>
+  );
+}
+
+function Progress() {
+  return (
+    <div aria-label="Step 6 of 8: Final Tax Check" className="mb-6">
+      <div className="mb-2 flex items-center justify-between text-xs font-semibold">
+        <span className="text-primary">Step 6 of 8</span>
+        <span className="text-slate-500">75% complete</span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
+        <div className="h-full w-3/4 rounded-full bg-primary" />
+      </div>
+    </div>
+  );
+}
+
+function ResultCard({
+  result,
+  selectedRegime,
+}: {
+  result: ITRResult;
+  selectedRegime: TaxRegime;
+}) {
+  const slab = result.regime_comparison[selectedRegime];
+  const amount = Math.abs(slab.net_payable);
+  const state: ResultState =
+    slab.net_payable < 0 ? "refund" : slab.net_payable > 0 ? "payable" : "balanced";
+  const title =
+    state === "refund"
+      ? "Estimated refund"
+      : state === "payable"
+        ? "Estimated tax to pay"
+        : "No additional refund or tax to pay";
+
+  return (
+    <Card className="border-primary/20 bg-gradient-to-br from-white via-white to-blue-50/70 p-5 sm:p-7">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+            Preliminary tax result
+          </p>
+          <h2 className="mt-2 text-xl font-bold text-slate-950 sm:text-2xl">{title}</h2>
+        </div>
+        <StatusPill tone="neutral">
+          {selectedRegime === "new" ? "New regime" : "Old regime"} estimate
+        </StatusPill>
+      </div>
+      {state !== "balanced" && (
+        <p className={`mt-3 text-4xl font-extrabold tabular-nums sm:text-5xl ${state === "refund" ? "text-emerald-700" : "text-slate-950"}`}>
+          {formatINR(amount)}
+        </p>
+      )}
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+        Based on the information currently added. This is an estimate, not a promise; the
+        Income Tax Department determines the final amount after filing and e-verification.
+      </p>
     </Card>
   );
 }
 
-function ImportTab() {
-  const isPaid = Boolean(useDraftStore((s) => s.paidPlanId));
-  const connectedConnectors = useDraftStore((s) => s.connectedConnectors);
-  const income = useDraftStore((s) => s.income);
-  const deductions = useDraftStore((s) => s.deductions);
-  const houseProperty = useDraftStore((s) => s.houseProperty);
-  const regime = useDraftStore((s) => s.regime);
-  const mismatchResolved = useDraftStore((s) => s.mismatchResolved);
-  const employers = useMemo(() => income.employers ?? [], [income.employers]);
-
-  const rows = useMemo(
-    () =>
-      buildReconciliationStatements({
-        connectedConnectors,
-        grossSalary: income.grossSalary,
-        tds: income.tds,
-        fdInterest: income.fdInterest,
-        mismatchResolved,
-      }),
-    [connectedConnectors, income.grossSalary, income.tds, income.fdInterest, mismatchResolved]
-  );
-  const rowSummary = useMemo(() => summarizeReconciliationRows(rows), [rows]);
-
-  const flags = useMemo(
-    () =>
-      buildReconciliationFlags({
-        connectedConnectors,
-        employers,
-        grossSalary: income.grossSalary,
-        tds: income.tds,
-        mismatchResolved,
-      }),
-    [connectedConnectors, employers, income.grossSalary, income.tds, mismatchResolved]
-  );
-  const multiEmployerFlag = flags.find((f) => f.id === "multi-employer");
-
-  const deductionItems = useMemo(
-    () => buildDeductionChecklist({ deductions, houseProperty, income, regime }),
-    [deductions, houseProperty, income, regime]
-  );
-  const deductionSummary = useMemo(
-    () => summarizeDeductionChecklist(deductionItems),
-    [deductionItems]
-  );
-
-  if (connectedConnectors.length === 0) {
-    return (
-      <EmptyState
-        title="No documents imported yet"
-        body="Upload your Form 16 and AIS so we can pre-fill salary and TDS, then cross-check against the tax department's records."
-        ctaHref="/file/import/documents"
-        ctaLabel="Import documents"
-      />
-    );
-  }
-
+function SummaryCard({
+  eyebrow,
+  title,
+  detail,
+  href,
+  event,
+}: {
+  eyebrow: string;
+  title: string;
+  detail: string;
+  href: string;
+  event: "review_regime_opened" | "review_itr_form_opened" | "review_document_status_opened";
+}) {
   return (
-    <div className="space-y-3">
-      {/* Document sources — what's imported vs still to add */}
-      <ul className="recon-doc-grid">
-        {DOC_SOURCES.map((doc) => {
-          const imported = connectedConnectors.includes(doc.id);
-          return (
-            <li
-              key={doc.id}
-              className={`flex flex-col rounded-2xl border p-4 ${
-                imported
-                  ? "border-emerald-200 bg-emerald-50/40"
-                  : "border-slate-200 bg-white"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-slate-900">{doc.label}</span>
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                    imported
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  <span
-                    className={`size-1.5 rounded-full ${
-                      imported ? "bg-emerald-500" : "bg-slate-400"
-                    }`}
-                    aria-hidden
-                  />
-                  {imported ? "Imported" : "Not imported"}
-                </span>
-              </div>
-              <p className="mt-1 flex-1 text-xs text-slate-600">{doc.role}</p>
-              {doc.id === "form16" && imported && (
-                <p className="mt-2 text-xs font-medium tabular-nums text-slate-700">
-                  Gross {formatINR(income.grossSalary)} · TDS {formatINR(income.tds)}
-                </p>
-              )}
-              {!imported && (
-                <Link
-                  href={doc.importHref}
-                  className="mt-2 text-xs font-semibold text-primary hover:underline"
-                >
-                  Add {doc.label}
-                </Link>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+    <Card className="h-full">
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{eyebrow}</p>
+      <h2 className="mt-2 text-lg font-bold text-slate-950">{title}</h2>
+      <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{detail}</p>
+      <Link
+        href={href}
+        onClick={() => trackEvent(event)}
+        className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      >
+        Review <ArrowRight className="size-4" aria-hidden />
+      </Link>
+    </Card>
+  );
+}
 
-      {/* Line-item three-way reconciliation */}
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-semibold text-slate-900">Cross-check your figures</h3>
-          <span className="text-xs text-slate-500">
-            {rowSummary.matched} matched · {rowSummary.attention} need attention ·{" "}
-            {rowSummary.missing} to add
-          </span>
+function ActionSection({
+  attention,
+  missing,
+  itrNeedsReview,
+}: {
+  attention: number;
+  missing: number;
+  itrNeedsReview: boolean;
+}) {
+  const required = attention + (itrNeedsReview ? 1 : 0);
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Required actions</p>
+          <h2 className="mt-1 text-xl font-bold text-slate-950">
+            {required ? `${required} ${required === 1 ? "item" : "items"} need review` : "No required actions"}
+          </h2>
         </div>
-        <p className="mt-1 text-sm text-slate-600">
-          Form 16 vs AIS vs Form 26AS, line by line. Resolve attention rows before you
-          file on the portal.
-        </p>
-        <ul className="mt-3 space-y-2">
-          {rows.map((row) => (
-            <ReconcileRowCard key={row.id} row={row} />
-          ))}
-        </ul>
-        {multiEmployerFlag && (
-          <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            {multiEmployerFlag.detail}
-          </p>
-        )}
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button href="/file/import/mismatch" variant="secondary" className="self-start">
-            Open number-difference screen
-          </Button>
-          <Button href="/file/import/documents" variant="ghost" className="self-start">
-            Manage documents
-          </Button>
-        </div>
-      </Card>
-
-      {/* Deduction checklist summary — full detail lives on the Deductions tab */}
-      <Card>
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-slate-900">Deduction checklist</h3>
+        <StatusPill tone={required ? "warning" : "good"}>
+          {required ? "Review required" : "Ready to continue"}
+        </StatusPill>
+      </div>
+      <div className="mt-4 space-y-3">
+        {attention > 0 && (
           <Link
-            href={buildReviewUrl("deductions")}
-            className="text-sm font-medium text-primary hover:underline"
+            href="/file/import/mismatch"
+            onClick={() => trackEvent("review_required_action_opened")}
+            className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
-            Review all
+            <AlertCircle className="mt-0.5 size-5 shrink-0 text-amber-700" aria-hidden />
+            <span><strong className="block text-sm text-slate-900">Review {attention} actual source {attention === 1 ? "difference" : "differences"}</strong><span className="text-xs text-slate-600">These lines have available values that need confirmation.</span></span>
           </Link>
-        </div>
-        <p className="mt-1 text-sm text-slate-600">
-          {deductionSummary.claimed} claimed · {deductionSummary.needsProof} need proof ·{" "}
-          {deductionSummary.notApplicable} not applicable. Total claimed{" "}
-          {formatINR(deductionSummary.totalClaimedAmount)}.
-        </p>
-        <p className="mt-2 text-xs text-slate-500">
-          Only claim deductions that actually happened and that you can prove.
-        </p>
-      </Card>
-
-      <FilingActions>
-        <Button href="/file/review?tab=income">Next: Income Sources</Button>
-      </FilingActions>
-    </div>
-  );
-}
-
-function IncomeTab({ result }: { result?: ITRResult | null }) {
-  const income = useDraftStore((s) => s.income);
-  const houseProperty = useDraftStore((s) => s.houseProperty);
-  const regime = useDraftStore((s) => s.regime) ?? "new";
-  const setIncome = useDraftStore((s) => s.setIncome);
-  const incomeChips = useDraftStore((s) => s.incomeChips);
-  const capitalGains = useDraftStore((s) => s.capitalGains);
-  const matrix = useDraftStore((s) => s.matrix);
-  const employers = income.employers ?? [];
-  const hasBusinessIncome =
-    incomeChips.includes("freelance") ||
-    incomeChips.includes("business_presumptive") ||
-    matrix.business === "v" ||
-    (income.businessRevenue ?? 0) > 0 ||
-    (income.freelanceRevenue ?? 0) > 0;
-  const hasCapitalGains =
-    incomeChips.includes("capital_gains") || capitalGains !== null;
-  const hasAnyIncome =
-    income.grossSalary > 0 ||
-    income.fdInterest > 0 ||
-    houseProperty.propertyType !== "none" ||
-    hasBusinessIncome ||
-    hasCapitalGains ||
-    incomeChips.includes("fno") ||
-    incomeChips.includes("crypto") ||
-    incomeChips.includes("foreign");
-
-  // Hooks must run on every render — keep them above the empty-state return.
-  const fnoTurnoverFocus = useGenieFocus("fno_turnover");
-  const fnoProfitFocus = useGenieFocus("fno_profit");
-
-  if (!hasAnyIncome) {
-    return (
-      <EmptyState
-        title="No income captured yet"
-        body="Add salary, house property, or other income so we can compute your tax."
-        ctaHref="/file/income"
-        ctaLabel="Add income"
-      />
-    );
-  }
-
-  const basicSalary = Math.round(income.grossSalary * 0.5);
-  const fnoAudit =
-    (income.fnoTurnover ?? 0) >= 10_00_00_000
-      ? "Your F&O absolute turnover is at or above ₹10 crore — a tax audit may apply. We recommend a CA review."
-      : null;
-
-  return (
-    <div className="space-y-3">
-      <MultiForm16SummaryCard employers={employers} regime={regime} />
-
-      <Card>
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-slate-900">Salary</h3>
-          <Link href="/file/income" className="text-sm font-medium text-primary hover:underline">
-            Edit
-          </Link>
-        </div>
-        <p className="mt-2 text-sm text-slate-700">
-          <strong>Gross salary:</strong> {formatINR(income.grossSalary)}
-        </p>
-        <p className="mt-1 text-sm text-slate-700">
-          <strong>TDS:</strong> {formatINR(income.tds)}
-        </p>
-        {employers.length > 1 && (
-          <ul className="mt-3 space-y-1 border-t border-slate-100 pt-3">
-            {employers.map((e) => (
-              <li key={e.id} className="text-sm text-slate-600">
-                {e.name}: {formatINR(e.grossSalary)} · TDS {formatINR(e.tds)}
-              </li>
-            ))}
-          </ul>
         )}
-      </Card>
-
-      <HraCalculator
-        hraReceived={income.hraReceived}
-        basicSalary={basicSalary}
-        actualRentPaid={income.actualRentPaid}
-        cityTier={income.cityTier}
-        onChange={(patch) => setIncome(patch)}
-      />
-
-      {(incomeChips.includes("fno") || (income.fnoTurnover ?? 0) > 0) && (
-        <Card>
-          <h3 className="font-semibold text-slate-900">F&amp;O / trading (Schedule BP)</h3>
-          <p className="mt-2 text-sm text-slate-700">
-            Absolute turnover: {formatINR(income.fnoTurnover ?? 0)}
-          </p>
-          <p className="mt-1 text-sm text-slate-700">
-            Non-speculative P&amp;L: {formatINR(income.fnoNonSpeculativeProfit ?? 0)}
-          </p>
-          <p className="mt-1 text-sm text-slate-700">
-            Speculative / intraday P&amp;L: {formatINR(income.fnoSpeculativeProfit ?? 0)}
-          </p>
-          {fnoAudit && (
-            <p className="mt-2 text-sm text-amber-800">{fnoAudit}</p>
-          )}
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            <label className="text-xs">
-              Turnover
-              <input
-                type="number"
-                className="mt-1 w-full rounded-lg border px-2 py-1.5 text-sm"
-                value={income.fnoTurnover || ""}
-                onChange={(e) =>
-                  setIncome({ fnoTurnover: Math.max(0, Number(e.target.value) || 0) })
-                }
-                onFocus={fnoTurnoverFocus.onFocus}
-              />
-            </label>
-            <label className="text-xs">
-              F&amp;O profit
-              <input
-                type="number"
-                className="mt-1 w-full rounded-lg border px-2 py-1.5 text-sm"
-                value={income.fnoNonSpeculativeProfit || ""}
-                onChange={(e) =>
-                  setIncome({
-                    fnoNonSpeculativeProfit: Number(e.target.value) || 0,
-                  })
-                }
-                onFocus={fnoProfitFocus.onFocus}
-              />
-            </label>
-            <label className="text-xs">
-              Intraday profit
-              <input
-                type="number"
-                className="mt-1 w-full rounded-lg border px-2 py-1.5 text-sm"
-                value={income.fnoSpeculativeProfit || ""}
-                onChange={(e) =>
-                  setIncome({
-                    fnoSpeculativeProfit: Number(e.target.value) || 0,
-                  })
-                }
-              />
-            </label>
-          </div>
-        </Card>
-      )}
-
-      {hasBusinessIncome && <BusinessIncomeCard result={result} />}
-
-      {hasCapitalGains && <CapitalGainsCard />}
-
-      {(incomeChips.includes("crypto") || incomeChips.includes("foreign") || incomeChips.includes("nri")) && (
-        <Card>
-          <h3 className="font-semibold text-slate-900">Guided schedules</h3>
-          <div className="mt-2 flex flex-wrap gap-2 text-sm">
-            {incomeChips.includes("crypto") && (
-              <Link href="/file/import/vda" className="text-primary font-medium underline">
-                Edit crypto / VDA trades
-              </Link>
-            )}
-            {(incomeChips.includes("foreign") || incomeChips.includes("nri")) && (
-              <Link href="/file/import/foreign" className="text-primary font-medium underline">
-                Edit NRI / Schedule FA
-              </Link>
-            )}
-          </div>
-        </Card>
-      )}
-
-      <Card>
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-slate-900">House property</h3>
-          <Link href="/file/house-property" className="text-sm font-medium text-primary hover:underline">
-            Edit
+        {itrNeedsReview && (
+          <Link href="/file/start" className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+            <AlertCircle className="mt-0.5 size-5 shrink-0 text-amber-700" aria-hidden />
+            <span><strong className="block text-sm text-slate-900">Review the likely ITR form</strong><span className="text-xs text-slate-600">Your case includes information that needs a guided form check.</span></span>
           </Link>
-        </div>
-        <p className="mt-2 text-sm text-slate-700">
-          {houseProperty.propertyType === "none"
-            ? "None declared."
-            : `${houseProperty.propertyType === "let_out" ? "Let out" : "Self-occupied"} · loan interest ${formatINR(houseProperty.homeLoanInterest)}`}
-        </p>
-      </Card>
-
-      <Card>
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-slate-900">Other sources</h3>
-          <Link href="/file/other" className="text-sm font-medium text-primary hover:underline">
-            Edit
-          </Link>
-        </div>
-        <p className="mt-2 text-sm text-slate-700">
-          <strong>Interest income:</strong> {formatINR(income.fdInterest)}
-        </p>
-      </Card>
-
-      <FilingActions>
-        <Button href="/file/review?tab=deductions">Next: Deductions</Button>
-      </FilingActions>
-    </div>
+        )}
+        {!required && (
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+            <CheckCircle2 className="size-5 text-emerald-700" aria-hidden />
+            <p className="text-sm font-semibold text-emerald-900">Your current information has no blocking review items.</p>
+          </div>
+        )}
+        {missing > 0 && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-semibold text-slate-900">{missing} optional {missing === 1 ? "source is" : "sources are"} not added</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">AIS or Form 26AS can strengthen cross-checks. Missing documents are not treated as number mismatches.</p>
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
 
-function DeductionsTab({ result }: { result: ITRResult | null }) {
-  const deductions = useDraftStore((s) => s.deductions);
-  const houseProperty = useDraftStore((s) => s.houseProperty);
-  const income = useDraftStore((s) => s.income);
-  const regime = useDraftStore((s) => s.regime);
-  const setDeductions = useDraftStore((s) => s.setDeductions);
-  const [paymentMode80D, setPaymentMode80D] = useState("upi");
-  const cashBlocked = is80DCashPaymentBlocked(paymentMode80D);
-
-  const items = useMemo(
-    () =>
-      buildDeductionChecklist({
-        deductions,
-        houseProperty,
-        income,
-        regime,
-      }),
-    [deductions, houseProperty, income, regime]
-  );
-  const summary = useMemo(() => summarizeDeductionChecklist(items), [items]);
-
+function DocumentDetails({ rows, paid }: { rows: ReconciliationRow[]; paid: boolean }) {
+  const summary = summarizeReconciliationRows(rows);
   return (
-    <div className="space-y-3">
-      {regime === null && (
-        <Banner variant="info">
-          Regime not selected yet — statuses assume the old regime.{" "}
-          <Link href="/file/regime" className="font-medium underline">
-            Choose a regime
-          </Link>
-          .
-        </Banner>
-      )}
-      <SmartSavingsFinder result={result} />
-
-      <Card>
-        <h3 className="font-semibold text-slate-900">Section 80D payment mode</h3>
-        <p className="mt-1 text-sm text-slate-600">
-          Health insurance and medical expenses must be paid by non-cash modes.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {["upi", "card", "cheque", "bank_transfer", "cash"].map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                paymentMode80D === mode
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-slate-200 text-slate-600"
-              }`}
-              onClick={() => {
-                setPaymentMode80D(mode);
-                if (is80DCashPaymentBlocked(mode) && deductions.section80D > 0) {
-                  setDeductions({ section80D: 0 });
-                }
-              }}
-            >
-              {mode.replace("_", " ")}
-            </button>
+    <Card>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Document and tax-credit check</p>
+          <h2 className="mt-1 text-xl font-bold text-slate-950">Source status</h2>
+        </div>
+        <FileCheck2 className="size-6 text-primary" aria-hidden />
+      </div>
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-xl bg-emerald-50 p-3"><strong className="block text-xl text-emerald-800">{summary.matched}</strong><span className="text-xs text-emerald-800">Matched</span></div>
+        <div className="rounded-xl bg-amber-50 p-3"><strong className="block text-xl text-amber-900">{summary.attention}</strong><span className="text-xs text-amber-900">Needs review</span></div>
+        <div className="rounded-xl bg-slate-100 p-3"><strong className="block text-xl text-slate-800">{summary.missing}</strong><span className="text-xs text-slate-700">Missing</span></div>
+      </div>
+      {paid && (
+        <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
+          {rows.map((row) => (
+            <div key={row.id} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div><p className="text-sm font-semibold text-slate-900">{row.label}</p><p className="text-xs leading-5 text-slate-600">{row.detail}</p></div>
+              <StatusPill tone={row.severity === "matched" ? "good" : row.severity === "attention" ? "warning" : "neutral"}>
+                {row.severity === "matched" ? "Matched" : row.severity === "attention" ? "Needs review" : "Missing source"}
+              </StatusPill>
+            </div>
           ))}
         </div>
-        {cashBlocked && (
-          <Banner variant="warning">
-            {SECTION_80D_CASH_MESSAGE}
-          </Banner>
-        )}
-      </Card>
-
-      <Card>
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-slate-900">Deduction checklist</h3>
-        </div>
-        <p className="mt-1 text-sm text-slate-600">
-          {summary.claimed} claimed · {summary.needsProof} need proof ·{" "}
-          {summary.notApplicable} not applicable. Total claimed{" "}
-          {formatINR(summary.totalClaimedAmount)}.
-        </p>
-        <ul className="mt-3 space-y-2">
-          {items.map((item) => {
-            const style = DEDUCTION_STATUS_STYLE[item.status];
-            return (
-              <li
-                key={item.id}
-                className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2.5"
-              >
-                <span className="min-w-0">
-                  <span className="text-sm font-semibold text-slate-900">
-                    {item.label}{" "}
-                    <span className="font-normal text-slate-500">({item.section})</span>
-                  </span>
-                  <span className="block text-xs text-slate-600">{item.note}</span>
-                </span>
-                <span className="flex items-center gap-2">
-                  {item.amount > 0 && item.status !== "not-applicable" && (
-                    <span className="text-sm font-semibold tabular-nums text-slate-900">
-                      {formatINR(item.amount)}
-                    </span>
-                  )}
-                  <span
-                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${style.className}`}
-                  >
-                    {style.label}
-                  </span>
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-        <p className="mt-3 text-xs text-slate-500">
-          Labels are factual — only claim deductions that actually happened and that you can prove.
-        </p>
-      </Card>
-
-      <FilingActions>
-        <Button href="/file/regime">Next: Tax Regime</Button>
-      </FilingActions>
-    </div>
+      )}
+    </Card>
   );
 }
 
-function ReconcileHero({
+function PaidDetails({
   result,
   selectedRegime,
-  savingsCoach,
+  deductionSummary,
 }: {
-  result: ITRResult | null;
+  result: ITRResult;
   selectedRegime: TaxRegime;
-  savingsCoach: SavingsCoachSummary;
+  deductionSummary: ReturnType<typeof summarizeDeductionChecklist>;
 }) {
-  const connectedConnectors = useDraftStore((s) => s.connectedConnectors);
-  const income = useDraftStore((s) => s.income);
-  const mismatchResolved = useDraftStore((s) => s.mismatchResolved);
-  const isPaid = Boolean(useDraftStore((s) => s.paymentVerifiedAt));
-
-  const rowSummary = useMemo(
-    () =>
-      summarizeReconciliationRows(
-        buildReconciliationStatements({
-          connectedConnectors,
-          grossSalary: income.grossSalary,
-          tds: income.tds,
-          fdInterest: income.fdInterest,
-          mismatchResolved,
-        })
-      ),
-    [connectedConnectors, income.grossSalary, income.tds, income.fdInterest, mismatchResolved]
-  );
-
-  const rc = result?.regime_comparison;
-  const slab = rc?.[selectedRegime];
-  const netPayable = savingsCoach.netPayable;
-  const isRefund = savingsCoach.isRefund;
-  const hasResult = Boolean(result && slab);
-  const openItems = rowSummary.attention + rowSummary.missing;
-  const regimeSavings =
-    rc && savingsCoach.regimeDelta > 0
-      ? `${rc.recommended_regime === "old" ? "Old" : "New"} regime saves ${
-          isPaid ? formatINR(savingsCoach.regimeDelta) : "₹***"
-        } on your numbers.`
-      : null;
-
+  const slab = result.regime_comparison[selectedRegime];
+  const lines = [
+    ["Taxable income", slab.taxable_income],
+    ["Tax before rebate", slab.gross_tax],
+    ["Rebate", -slab.rebate_87a],
+    ["Cess", slab.cess],
+    ["Total tax", slab.total_tax],
+    ["TDS and advance tax", -slab.tds_and_advance_tax],
+  ] as const;
   return (
-    <Card className="overflow-hidden bg-gradient-to-br from-white to-slate-50/80">
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] sm:items-center">
-        <div className="relative">
-          {!isPaid && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-xl bg-white/40 p-4 text-center backdrop-blur-md">
-              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 shadow-sm mb-3">
-                <Lock className="h-5 w-5 text-slate-500" aria-hidden />
-              </div>
-              <p className="text-sm font-bold text-slate-900">Unlock your snapshot</p>
-              <Button href="/file/checkout/plans" className="mt-3 min-h-8 text-xs px-4">
-                View plans & unlock
-              </Button>
-            </div>
-          )}
-          <div className={!isPaid ? "pointer-events-none select-none opacity-40 blur-[4px]" : ""}>
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-              {selectedRegime === "new" ? "New regime" : "Old regime"} · estimate
-            </p>
-            {hasResult ? (
-              <div className="mt-1 flex items-center gap-2">
-                <p
-                  className={`text-2xl font-bold tabular-nums sm:text-3xl ${
-                    isRefund ? "text-emerald-700" : "text-slate-900"
-                  }`}
-                >
-                  {isRefund ? "Estimated refund " : "Estimated tax to pay "}
-                  <span>{isPaid ? formatINR(Math.abs(netPayable)) : "₹***"}</span>
-                </p>
-              </div>
-            ) : (
-              <p className="mt-1 text-2xl font-bold text-slate-400">
-                Add income to see your estimate
-              </p>
-            )}
-            {regimeSavings && (
-              <p className="mt-1 text-sm font-medium text-emerald-700">{regimeSavings}</p>
-            )}
-            {savingsCoach.remainingUpside > 0 && (
-              <p className="mt-1 text-xs font-medium leading-relaxed text-emerald-700 sm:text-sm">
-                Your checklist found up to{" "}
-                <strong>{isPaid ? formatINR(savingsCoach.remainingUpside) : "₹***"}</strong> more legal
-                savings if you have proof.
-              </p>
-            )}
-            {savingsCoach.totalPossibleUpside > savingsCoach.regimeDelta && (
-              <p className="mt-1 text-sm font-semibold text-slate-800">
-                Total possible upside: up to {isPaid ? formatINR(savingsCoach.totalPossibleUpside) : "₹***"}.
-              </p>
-            )}
-            {savingsCoach.breakevenGap > 0 && (
-              <p className="mt-1 text-xs text-slate-500">
-                Old regime would need about {isPaid ? formatINR(savingsCoach.breakevenGap) : "₹***"} more
-                eligible deductions to beat the new regime.
-              </p>
-            )}
-            <p className="mt-1 text-xs text-slate-500">
-              An estimate, not a promise — the CPC (Centralised Processing Centre) decides
-              your final refund after you file and e-verify on incometax.gov.in.
-            </p>
+    <Card>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Full tax breakdown</p>
+      <h2 className="mt-1 text-xl font-bold text-slate-950">Your filing summary</h2>
+      <dl className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200 px-4">
+        {lines.map(([label, value]) => (
+          <div key={label} className="flex items-center justify-between gap-4 py-3 text-sm">
+            <dt className="text-slate-600">{label}</dt>
+            <dd className="font-semibold tabular-nums text-slate-950">{value < 0 ? "−" : ""}{formatINR(Math.abs(value))}</dd>
           </div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-3.5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Document check
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-700 sm:text-sm">
-            {openItems === 0 ? (
-              <span className="font-semibold text-emerald-700">
-                {RECONCILE.allClear}
-              </span>
-            ) : (
-              <>
-                <span className="font-semibold text-amber-700">{openItems}</span>{" "}
-                {openItems === 1 ? "line" : "lines"} where your documents show
-                different numbers.
-              </>
-            )}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            {rowSummary.matched} matched · {rowSummary.attention} attention ·{" "}
-            {rowSummary.missing} to add
-          </p>
-          {openItems > 0 && (
-            <Link
-              href="/file/import/mismatch"
-              className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
-            >
-              Fix number differences
-              <ArrowRight className="size-3.5" aria-hidden />
-            </Link>
-          )}
-        </div>
+        ))}
+      </dl>
+      <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-slate-700">
+        <strong className="text-slate-950">Tax-saving review:</strong> {deductionSummary.claimed} claimed, {deductionSummary.needsProof} need supporting information, and {deductionSummary.notApplicable} are not applicable under the current facts.
       </div>
     </Card>
   );
 }
 
 function ReviewDashboard() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const activeTab = parseReviewTab(searchParams.get("tab"));
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const regime = useDraftStore((s) => s.regime);
-  const navDraft = useDraftStore(
+  const draft = useDraftStore(
     useShallow((s) => ({
-      profile: s.profile,
-      matrix: s.matrix,
-      income: s.income,
-      houseProperty: s.houseProperty,
-      extraProperties: s.extraProperties,
-      carryForward: s.carryForward,
-      depreciationBlocks: s.depreciationBlocks,
-      deductions: s.deductions,
       regime: s.regime,
+      recommendedForm: s.recommendedForm,
       incomeChips: s.incomeChips,
       connectedConnectors: s.connectedConnectors,
+      income: s.income,
+      deductions: s.deductions,
+      houseProperty: s.houseProperty,
       mismatchResolved: s.mismatchResolved,
-      lastParseResult: s.lastParseResult,
-      questionAnswers: s.questionAnswers,
+      paidPlanId: s.paidPlanId,
+      plan: s.plan,
+      paymentVerifiedAt: s.paymentVerifiedAt,
     }))
   );
-  const tabStatuses = getReviewTabStatuses(navDraft);
-
-  const { loading, error, engineUnavailable, result, lastSnapshot, userInput, compute } =
-    useDraftTaxCompute();
+  const { loading, error, engineUnavailable, result, lastSnapshot, userInput, compute } = useDraftTaxCompute();
   const effectiveResult = result ?? lastSnapshot;
   const selectedRegime: TaxRegime =
-    regime ?? effectiveResult?.regime_comparison.recommended_regime ?? "new";
-  const savingsCoach = useMemo(
+    draft.regime ?? effectiveResult?.regime_comparison.recommended_regime ?? "new";
+  const rows = useMemo(
     () =>
-      buildSavingsCoachSummary({
-        result: effectiveResult,
-        selectedRegime,
-        questionContext: {
-          result: effectiveResult,
-          userInput,
-          draft: {
-            profile: navDraft.profile,
-            income: navDraft.income,
-            incomeChips: navDraft.incomeChips,
-            connectedConnectors: navDraft.connectedConnectors,
-            mismatchResolved: navDraft.mismatchResolved,
-            lastParseResult: navDraft.lastParseResult,
-            houseProperty: navDraft.houseProperty,
-            extraProperties: navDraft.extraProperties,
-            carryForward: navDraft.carryForward,
-            depreciationBlocks: navDraft.depreciationBlocks,
-            deductions: navDraft.deductions,
-          },
-          questionAnswers: navDraft.questionAnswers,
-        },
+      buildReconciliationStatements({
+        connectedConnectors: draft.connectedConnectors,
+        grossSalary: draft.income.grossSalary,
+        tds: draft.income.tds,
+        fdInterest: draft.income.fdInterest,
+        mismatchResolved: draft.mismatchResolved,
       }),
-    [effectiveResult, selectedRegime, userInput, navDraft]
+    [draft.connectedConnectors, draft.income, draft.mismatchResolved]
   );
+  const rowSummary = useMemo(() => summarizeReconciliationRows(rows), [rows]);
+  const deductionSummary = useMemo(
+    () =>
+      summarizeDeductionChecklist(
+        buildDeductionChecklist({
+          deductions: draft.deductions,
+          houseProperty: draft.houseProperty,
+          income: draft.income,
+          regime: selectedRegime,
+        })
+      ),
+    [draft.deductions, draft.houseProperty, draft.income, selectedRegime]
+  );
+  const likelyForm = effectiveResult?.profile.itr_form ?? draft.recommendedForm;
+  const scope = evaluateScopeGate({
+    incomeChips: draft.incomeChips,
+    recommendedForm: likelyForm,
+  });
+  const complexChips = new Set(["capital_gains", "crypto", "fno", "freelance", "business_presumptive", "nri", "foreign"]);
+  const recommendedPlanId = draft.incomeChips.some((chip) => complexChips.has(chip)) ? "pro" : "normal";
+  const recommendedPlan = PLANS[recommendedPlanId];
+  const normalizedPaidPlan = normalizePlanId(draft.paidPlanId ?? draft.plan);
+  // Preserve the existing entitlement signal. Older verified drafts may not
+  // have paidPlanId populated, so paymentVerifiedAt remains authoritative.
+  const isPaid = Boolean(draft.paymentVerifiedAt);
+  const activePlan = normalizedPaidPlan ? PLANS[normalizedPaidPlan] : null;
+  const itrNeedsReview = scope.verdict === "blocked" || Boolean(effectiveResult?.profile.expert_required);
+  const requiredCount = rowSummary.attention + (itrNeedsReview ? 1 : 0);
 
-  const selectTab = (tab: ReviewTab) => {
-    setIsMobileMenuOpen(false);
-    router.replace(buildReviewUrl(tab), { scroll: false });
-  };
+  useEffect(() => {
+    trackEvent("review_page_view", {
+      paid_state: isPaid ? "paid" : "unpaid",
+      blocker_count: requiredCount,
+      warning_count: rowSummary.missing,
+      recommended_plan: recommendedPlanId,
+      likely_itr_category: likelyForm,
+    });
+    if (effectiveResult) {
+      trackEvent("review_tax_result_viewed", {
+        result_state:
+          effectiveResult.regime_comparison[selectedRegime].net_payable < 0
+            ? "refund"
+            : effectiveResult.regime_comparison[selectedRegime].net_payable > 0
+              ? "payable"
+              : "balanced",
+        paid_state: isPaid ? "paid" : "unpaid",
+      });
+    }
+    if (!isPaid) {
+      trackEvent("review_plan_recommendation_viewed", {
+        recommended_plan: recommendedPlanId,
+      });
+    }
+  }, [
+    effectiveResult,
+    isPaid,
+    likelyForm,
+    recommendedPlanId,
+    requiredCount,
+    rowSummary.missing,
+    selectedRegime,
+  ]);
 
-  const needsCompute = activeTab === "taxes" || activeTab === "summary";
+  if (loading && !effectiveResult) {
+    return (
+      <FilingLayout variant="wide">
+        <Progress />
+        <h1 className="text-3xl font-bold text-slate-950">Your final tax check</h1>
+        <p className="mt-2 text-slate-600">Preparing your final tax check…</p>
+        <div className="mt-6 h-56 animate-pulse rounded-2xl bg-slate-100" aria-label="Preparing your final tax check" />
+      </FilingLayout>
+    );
+  }
+
+  if ((error || engineUnavailable) && !effectiveResult) {
+    return (
+      <FilingLayout variant="wide">
+        <Progress />
+        <Card className="border-red-200" >
+          <div role="alert">
+            <h1 className="text-2xl font-bold text-slate-950">We could not load your final tax check</h1>
+            <p className="mt-2 text-sm text-slate-600">Your saved information has not been changed.</p>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button onClick={() => void compute(userInput)}>Try Again</Button>
+            <Button href="/file/income" variant="secondary">Return to Income & Tax Savings</Button>
+            <Button href="/help" variant="ghost">Get Help</Button>
+          </div>
+        </Card>
+      </FilingLayout>
+    );
+  }
 
   return (
-    <FilingLayout mirrorText={RECONCILE.hubMirror}>
-      <ScreenTitle title="Your filing snapshot" />
+    <FilingLayout variant="wide">
+      <Progress />
+      <header className="mb-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">Your final tax check</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Review what is complete, what needs attention, and what your selected filing plan includes.</p>
+          </div>
+          {isPaid && activePlan && <StatusPill tone="good">{activePlan.name} plan active</StatusPill>}
+        </div>
+      </header>
 
-      <ReconcileHero
-        result={effectiveResult}
-        selectedRegime={selectedRegime}
-        savingsCoach={savingsCoach}
-      />
+      {!effectiveResult ? (
+        <Card>
+          <h2 className="text-xl font-bold text-slate-950">Your calculation is incomplete</h2>
+          <p className="mt-2 text-sm text-slate-600">Add the required income information to prepare a preliminary tax result.</p>
+          <Button href="/file/income" className="mt-5">Review Income & Tax Savings</Button>
+        </Card>
+      ) : (
+        <>
+          <ResultCard result={effectiveResult} selectedRegime={selectedRegime} />
+          <div className="grid gap-3 md:grid-cols-3">
+            <SummaryCard eyebrow="Tax option" title={`${selectedRegime === "new" ? "New" : "Old"} regime selected`} detail={effectiveResult.regime_comparison.tax_saving > 0 ? `${effectiveResult.regime_comparison.recommended_regime === "new" ? "New" : "Old"} regime is lower by ${formatINR(effectiveResult.regime_comparison.tax_saving)} on the current information.` : "Both options are currently nearly equal. Review your choice before filing."} href="/file/regime" event="review_regime_opened" />
+            <SummaryCard eyebrow="Likely ITR form" title={`${likelyForm} · Provisional`} detail={effectiveResult.profile.routing_reasons[0] ?? "Based on the profile and income sources currently added."} href="/file/start" event="review_itr_form_opened" />
+            <SummaryCard eyebrow="Filing readiness" title={requiredCount ? `${requiredCount} required ${requiredCount === 1 ? "action" : "actions"}` : "Ready for the next check"} detail={`${rowSummary.missing} optional sources missing · ${deductionSummary.needsProof} tax-saving items need supporting information.`} href="#required-actions" event="review_document_status_opened" />
+          </div>
 
-      {needsCompute && error && (
-        <EngineComputeFallback
-          loading={loading}
-          error={error}
-          engineUnavailable={engineUnavailable}
-          lastSnapshot={lastSnapshot}
-          onRetry={() => void compute(userInput)}
-        />
+          <div id="required-actions">
+            <ActionSection attention={rowSummary.attention} missing={rowSummary.missing} itrNeedsReview={itrNeedsReview} />
+          </div>
+          <DocumentDetails rows={rows} paid={isPaid} />
+
+          <Card>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Tax-saving items to review</p>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">{deductionSummary.claimed} claimed · {deductionSummary.needsProof} need supporting information</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Only claim eligible items that occurred and can be supported. Items marked not applicable are excluded from the current facts or regime.</p>
+            <Link href="/file/deductions" onClick={() => trackEvent("review_tax_saving_items_opened")} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Review tax-saving information <ArrowRight className="size-4" aria-hidden /></Link>
+          </Card>
+
+          {isPaid ? (
+            <>
+              <PaidDetails result={effectiveResult} selectedRegime={selectedRegime} deductionSummary={deductionSummary} />
+              <Card className="border-emerald-200 bg-emerald-50/40">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="mt-0.5 size-6 shrink-0 text-emerald-700" aria-hidden />
+                  <div><h2 className="text-lg font-bold text-slate-950">Your detailed filing package is active</h2><p className="mt-1 text-sm leading-6 text-slate-600">Continue to the Guided Tax Check, then use your screen-by-screen Income Tax Portal guide.</p></div>
+                </div>
+                <Button href={requiredCount ? "#required-actions" : "/file/advisor"} onClick={() => trackEvent("review_guided_check_clicked")} className="mt-5">
+                  {requiredCount ? `Review ${requiredCount} Required ${requiredCount === 1 ? "Action" : "Actions"}` : "Continue to Guided Tax Check"}
+                </Button>
+              </Card>
+            </>
+          ) : (
+            <Card recommended className="bg-gradient-to-br from-white to-blue-50/60">
+              <p className="text-xs font-bold uppercase tracking-wider text-primary">{recommendedPlan.name} recommended</p>
+              <h2 className="mt-2 text-xl font-bold text-slate-950">Ready to complete your filing package?</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">Choose a plan to unlock the detailed filing summary, complete source-by-source checks and use the screen-by-screen Income Tax Portal guide.</p>
+              <p className="mt-3 text-sm font-semibold text-slate-800">{recommendedPlanId === "pro" ? "Recommended because investment or additional-income information needs guided checks." : "Suitable for a straightforward salary return based on the information added."}</p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Button href="/file/checkout/plans" onClick={() => trackEvent("review_plans_clicked")}>View Filing Plans</Button>
+                <Button href="/file/income" variant="secondary">Review My Information</Button>
+              </div>
+            </Card>
+          )}
+
+          <Card className="bg-slate-50">
+            <div className="flex items-start gap-3">
+              <CircleHelp className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
+              <div><h2 className="font-bold text-slate-950">Need help with this check?</h2><p className="mt-1 text-sm leading-6 text-slate-600">See plain-language help for documents, tax options and the next filing step.</p><Link href="/help" onClick={() => trackEvent("review_help_opened")} className="mt-2 inline-flex text-sm font-semibold text-primary hover:underline">Open Help</Link></div>
+            </div>
+          </Card>
+          <p className="mb-24 flex items-start gap-2 text-xs leading-5 text-slate-500 sm:mb-6"><ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />Your information stays tied to the active taxpayer profile. Review the final values before filing on the Income Tax Portal. <Link href="/privacy" className="font-semibold text-primary hover:underline">Privacy</Link></p>
+        </>
       )}
 
-      <div className="mb-4 flex flex-col gap-4">
-        {activeTab === "import" && <ImportTab />}
-        {activeTab === "income" && <IncomeTab result={effectiveResult} />}
-        {activeTab === "deductions" && <DeductionsTab result={effectiveResult} />}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:mt-6 sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+          <Button href="/file/regime" variant="ghost">Back</Button>
+          <Button href={!effectiveResult ? "/file/income" : isPaid ? "/file/advisor" : "/file/checkout/plans"}>
+            {!effectiveResult ? "Review Income & Tax Savings" : isPaid ? "Continue to Guided Tax Check" : "View Filing Plans"}
+          </Button>
+        </div>
       </div>
     </FilingLayout>
   );
@@ -936,9 +480,10 @@ export default function ReviewPage() {
   return (
     <Suspense
       fallback={
-        <FilingLayout>
-          <ScreenTitle title="Your filing snapshot" subtitle="Loading your draft…" />
-          <SkeletonRows />
+        <FilingLayout variant="wide">
+          <Progress />
+          <h1 className="text-3xl font-bold text-slate-950">Your final tax check</h1>
+          <p className="mt-2 text-slate-600">Preparing your final tax check…</p>
         </FilingLayout>
       }
     >

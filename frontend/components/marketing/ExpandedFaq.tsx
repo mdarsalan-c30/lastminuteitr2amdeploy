@@ -6,10 +6,11 @@ import { ScrollReveal } from "@/components/motion/ScrollReveal";
 import { EXPANDED_FAQ } from "@/lib/content/homepage";
 import { LANDING_FAQS } from "@/lib/content/faqs";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
 
 export function ExpandedFaq({ maxItems }: { maxItems?: number } = {}) {
   const faqs = maxItems === undefined ? LANDING_FAQS : LANDING_FAQS.slice(0, maxItems);
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
     <section id="faq" className="section-pad-lg px-4 sm:px-6 lg:px-8">
@@ -36,7 +37,15 @@ export function ExpandedFaq({ maxItems }: { maxItems?: number } = {}) {
                   <button
                     type="button"
                     className="flex w-full items-center justify-between py-5 px-1 text-left text-[15.5px] font-semibold text-[#0B1220] hover:text-[#0e5f63] transition-colors"
-                    onClick={() => setOpenIndex(isOpen ? null : i)}
+                    onClick={() => {
+                      const nextIndex = isOpen ? null : i;
+                      setOpenIndex(nextIndex);
+                      if (nextIndex !== null) {
+                        trackEvent("homepage_faq_opened", {
+                          faq_index: i,
+                        });
+                      }
+                    }}
                     aria-expanded={isOpen}
                   >
                     <span>{faq.question}</span>

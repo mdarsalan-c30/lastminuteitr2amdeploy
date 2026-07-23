@@ -22,7 +22,7 @@ export const TESTIMONIALS: Testimonial[] = [
     rating: 5,
     quote:
       "Filed at 11pm on July 30. AIS caught FD interest I would have missed — saved a notice headache.",
-    plan: "AI Smart",
+    plan: "Guided Tax Check",
     outcomeTag: "AIS mismatch caught",
   },
   {
@@ -44,7 +44,7 @@ export const TESTIMONIALS: Testimonial[] = [
     rating: 5,
     quote:
       "Groww + Form 16 import in one flow. Companion mode walked me through every ITR-1 screen.",
-    plan: "AI Smart",
+    plan: "Guided Tax Check",
     outcomeTag: "Companion filing",
   },
   {
@@ -77,7 +77,7 @@ export const TESTIMONIALS: Testimonial[] = [
     rating: 5,
     quote:
       "Switched to new regime after seeing the numbers — old blog advice would have cost ₹18k.",
-    plan: "AI Smart",
+    plan: "Guided Tax Check",
     outcomeTag: "Regime saved ₹18k",
   },
 ];

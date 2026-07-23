@@ -1,53 +1,36 @@
-import { IMPORT_STRIP_CONNECTORS } from "@/lib/connectors/registry";
-
 /**
  * Competitor-inspired marketing copy — rewritten for companion-first, compliance-safe positioning.
  * Reference only in comments; never ship competitor claims verbatim.
  */
 
 export const WHY_US = {
-  eyebrow: "Why LastMinute ITR",
-  headline: "Built for honest last-minute filing",
+  eyebrow: "Why LastminuteITR",
+  headline: "Understand your return before you submit it",
   subhead:
-    "We are not an e-file platform. We prep your numbers, catch mismatches, and guide you on incometax.gov.in — you submit yourself.",
+    "LastminuteITR helps organise your tax information, identify items that may need review and explain the next filing steps in simple language.",
   pillars: [
     {
       id: "mismatch",
-      title: "Mismatch checks first",
+      title: "Check missing or different information",
       detail:
-        "Form 16, AIS, and 26AS compared before you copy anything to the portal — fewer refund delays and notices.",
+        "Review available salary, income and tax details before filing. Checks depend on the information and documents you add.",
       competitorRef: "ClearTax accuracy claim → our reconcile wedge",
     },
     {
       id: "regime",
-      title: "Regime compare on your data",
+      title: "Compare both tax regimes",
       detail:
-        "Old vs new regime estimated from your draft — not a generic calculator. You pick; we never guarantee a refund.",
+        "See estimated tax under the old and new regimes using your available income and eligible tax-saving details.",
       competitorRef: "Quicko Save pillar → lawful regime choice",
     },
     {
       id: "portal",
-      title: "Portal companion, not auto-file",
+      title: "Guidance for the official portal",
       detail:
-        "Copy-ready field guide for incometax.gov.in. We do not submit returns or claim government authorization.",
+        "See where your reviewed information needs to be entered on incometax.gov.in.",
       competitorRef: "Both e-file CTAs → companion differentiation",
     },
   ],
-} as const;
-
-export const SCALE_PROOF = {
-  /** Honest early-access framing — do not use ClearTax-style volume claims */
-  headline: "Early access for salaried filers",
-  detail:
-    "We are building in public with beta testers. Figures on this site are estimates until ITD processes your return.",
-} as const;
-
-export const IMPORT_STRIP = {
-  eyebrow: "Import-first prep",
-  headline: "Start with documents you already have",
-  subhead:
-    "Form 16 and AIS first — same activation pattern as leading filers, without promising zero manual entry.",
-  connectors: IMPORT_STRIP_CONNECTORS,
 } as const;
 
 export const PERSONA_CAROUSEL = {

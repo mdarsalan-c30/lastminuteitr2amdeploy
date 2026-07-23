@@ -3,17 +3,14 @@
 import Link from "next/link";
 import { RegimeComparatorHero } from "@/components/marketing/RegimeComparatorHero";
 import { CaRegistrationForm } from "@/components/marketing/CaRegistrationForm";
-import { HERO_HEADLINE_ACCENT } from "@/lib/brand";
+import { trackEvent } from "@/lib/analytics";
 import {
   B2B_HERO_FEATURES,
   B2B_HERO_HEADLINE,
   B2B_HERO_HEADLINE_ACCENT,
   B2B_HERO_SUBTEXT,
 } from "@/lib/copy/b2b";
-import { ASSESSMENT_YEAR } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-
-import { useState } from "react";
 
 export function HeroSection({ mode, setMode }: { mode: "b2c" | "b2b"; setMode: (m: "b2c" | "b2b") => void }) {
 
@@ -94,94 +91,87 @@ export function HeroSection({ mode, setMode }: { mode: "b2c" | "b2b"; setMode: (
                     marginBottom: 16,
                   }}
                 >
-                  File ITR under 10 <br className="hidden sm:block" />
-                  min — Your personal <br className="hidden sm:block" />
-                  <span style={{ color: "#0e5f63" }}>smart AI Tax companion</span>
+                  File your ITR online <br className="hidden sm:block" />
+                  <span style={{ color: "#0e5f63" }}>
+                    — Your personal income-tax filing companion
+                  </span>
                 </h1>
 
                 <p
                   className="text-slate-700 font-medium leading-relaxed"
                   style={{
-                    fontSize: "clamp(15px, 1.8vw, 17px)",
+                    fontSize: "clamp(14px, 1.6vw, 15.5px)",
                     maxWidth: 580,
-                    marginBottom: 28,
+                    marginBottom: 14,
                   }}
                 >
-                  Upload your Form 16, AIS, and trading data, or start with a quick estimate. Answer a few smart questions to maximize your refund, run mismatch checks, and let a personal AI tax assistant guide you step-by-step to file ITR 1, ITR 2, ITR 3 & ITR 4 directly on <a href="https://www.incometax.gov.in" target="_blank" rel="noopener noreferrer" className="text-[#0e5f63] hover:underline font-semibold">incometax.gov.in</a>.
+                  Start with Form 16 or enter a few basic details. LastminuteITR helps organise
+                  your income, tax deducted, investments and other tax information, compares both
+                  tax regimes and guides you through filing on the official{" "}
+                  <a href="https://www.incometax.gov.in" target="_blank" rel="noopener noreferrer" className="text-[#0e5f63] hover:underline font-semibold">Income Tax Portal</a>.
                 </p>
 
-                <form
-                  className="mb-9 flex max-w-sm flex-col gap-3"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const formData = new FormData(e.currentTarget);
-                    const name = formData.get("name") as string;
-                    // Since it's B2C filing, send to register with name query param
-                    window.location.href = `/auth/register?name=${encodeURIComponent(name)}`;
-                  }}
-                >
-                  <div>
-                    <label htmlFor="b2c-name" className="sr-only">
-                      What should we call you?
-                    </label>
-                    <input
-                      id="b2c-name"
-                      name="name"
-                      type="text"
-                      required
-                      placeholder="What should we call you? (e.g. Rahul)"
-                      className="w-full rounded-[10px] border border-[#E6E8EC] px-4 py-3 text-[15px] outline-none transition-colors focus:border-[#0e5f63] focus:ring-1 focus:ring-[#0e5f63]"
-                    />
-                  </div>
-                  <button type="submit" className="btn-pill-primary w-full justify-center">
-                    Proceed to file
+                <p className="mb-6 max-w-[580px] text-[13.5px] leading-relaxed text-[#6B7280]">
+                  You review the information and submit and e-verify the return yourself on
+                  incometax.gov.in.
+                </p>
+
+                <div id="b2c-name" className="mb-3 flex max-w-[520px] flex-col gap-3 sm:flex-row">
+                  <Link
+                    href="/file/onboarding/eligibility?step=about-you"
+                    onClick={() =>
+                      trackEvent("homepage_start_itr_clicked", {
+                        location: "hero",
+                      })
+                    }
+                    className="btn-pill-primary justify-center"
+                  >
+                    Start My ITR
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
                       <path d="M3 8h10M9 4l4 4-4 4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                  </button>
-                  <p className="text-center text-[12.5px] text-[#6B7280]">
-                    Already have an account? <Link href="/auth/login" className="font-semibold text-[#0e5f63] hover:underline">Log in</Link>
-                  </p>
-                </form>
+                  </Link>
+                  <Link
+                    href="/file/import/documents?source=form16"
+                    onClick={() =>
+                      trackEvent("homepage_form16_clicked", {
+                        location: "hero",
+                      })
+                    }
+                    className="btn-pill-secondary justify-center"
+                  >
+                    Start with Form 16
+                  </Link>
+                </div>
+                <p className="mb-7 text-[12.5px] font-medium text-[#6B7280]">
+                  No payment required to start.
+                </p>
 
                 <div className="mb-3.5 flex flex-wrap gap-2.5">
                   {[
-                    {
-                      icon: (
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-                          <path d="M8 1l5.5 2.2v4.3c0 4-2.5 6.6-5.5 7.5-3-0.9-5.5-3.5-5.5-7.5V3.2L8 1z" stroke="#0e5f63" strokeWidth="1.3"/>
-                        </svg>
-                      ),
-                      label: "Only legal savings",
-                    },
-                    {
-                      icon: (
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-                          <rect x="2" y="6" width="12" height="8" rx="1.5" stroke="#0e5f63" strokeWidth="1.3"/>
-                          <path d="M5 6V4a3 3 0 016 0v2" stroke="#0e5f63" strokeWidth="1.3"/>
-                        </svg>
-                      ),
-                      label: "Your data stays private",
-                    },
-                    {
-                      icon: (
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-                          <circle cx="8" cy="8" r="6.5" stroke="#0e5f63" strokeWidth="1.3"/>
-                          <path d="M5 8h6M11 8l-2-2M11 8l-2 2" stroke="#0e5f63" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      ),
-                      label: "No auto-submit",
-                    },
-                  ].map((chip) => (
+                    "You review every number",
+                    "No automatic submission",
+                    "Old and new regime comparison",
+                    "Your progress is saved",
+                  ].map((label) => (
                     <div
-                      key={chip.label}
+                      key={label}
                       className="flex items-center gap-1.5 rounded-[8px] border border-[#E6E8EC] bg-white px-3 py-1.5 text-[12.5px] font-medium text-[#2B3344]"
                     >
-                      {chip.icon}
-                      {chip.label}
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+                        <circle cx="8" cy="8" r="6.5" stroke="#0e5f63" strokeWidth="1.3"/>
+                        <path d="M5 8l2 2 4-4" stroke="#0e5f63" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      {label}
                     </div>
                   ))}
                 </div>
+                <p className="max-w-[580px] text-[12px] leading-relaxed text-[#6B7280]">
+                  Your documents are used to prepare your tax summary and filing guidance.{" "}
+                  <Link href="/privacy" className="font-semibold text-[#0e5f63] hover:underline">
+                    How we use your data
+                  </Link>
+                </p>
 
               </>
             ) : (

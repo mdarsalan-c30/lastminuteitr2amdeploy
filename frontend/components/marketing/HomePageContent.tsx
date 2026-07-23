@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LandingJsonLd } from "@/components/marketing/LandingJsonLd";
 import { HowItWorks } from "@/components/marketing/HowItWorks";
 import { ExpandedFaq } from "@/components/marketing/ExpandedFaq";
@@ -12,9 +12,14 @@ import { HeroSection } from "@/components/marketing/HeroSection";
 import { ReviewsCarousel } from "@/components/marketing/ReviewsCarousel";
 import { ToolsSection } from "@/components/marketing/ToolsSection";
 import { B2BHowItWorks, B2BTools, B2BPricing, B2BFAQ } from "@/components/marketing/B2BMarketing";
+import { trackEvent } from "@/lib/analytics";
 
 export function HomePageContent() {
   const [mode, setMode] = useState<"b2c" | "b2b">("b2c");
+
+  useEffect(() => {
+    trackEvent("homepage_view");
+  }, []);
 
   return (
     <>
@@ -33,7 +38,7 @@ export function HomePageContent() {
             <ReviewsCarousel />
             <PricingSection />
             <FinalCta />
-            <ExpandedFaq maxItems={5} />
+            <ExpandedFaq />
           </>
         ) : (
           <>

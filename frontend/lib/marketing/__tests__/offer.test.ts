@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import { LAUNCH_OFFER, getEntryPriceInr, getLaunchOfferEndDate } from "../offer";
 
 describe("LAUNCH_OFFER config", () => {
-  it("targets pro (AI Smart) with catalog-aligned prices", () => {
+  it("keeps the legacy launch-offer configuration disabled", () => {
     expect(LAUNCH_OFFER.planId).toBe("pro");
+    expect(LAUNCH_OFFER.enabled).toBe(false);
     expect(LAUNCH_OFFER.launchPriceInr).toBe(599);
-    expect(LAUNCH_OFFER.originalPriceInr).toBe(1999);
+    expect(LAUNCH_OFFER.originalPriceInr).toBe(599);
   });
 
   it("entry price matches Starter", () => {

@@ -17,6 +17,7 @@ export interface PlanCardProps {
   onSelect?: () => void;
   href?: string;
   ctaLabel?: string;
+  onCtaClick?: () => void;
   className?: string;
 }
 
@@ -29,6 +30,7 @@ export function PlanCard({
   onSelect,
   href,
   ctaLabel,
+  onCtaClick,
   className,
 }: PlanCardProps) {
   const showPopular = plan.recommended && !engineRecommended && !plan.comingSoon;
@@ -156,6 +158,7 @@ export function PlanCard({
       {!isCheckout && href && !isComingSoon && (
         <Link
           href={href}
+          onClick={onCtaClick}
           className={cn(
             "mt-4 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
             plan.recommended

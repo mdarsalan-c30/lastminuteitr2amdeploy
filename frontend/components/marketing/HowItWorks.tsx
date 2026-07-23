@@ -20,7 +20,8 @@ export function HowItWorks() {
             {HOW_IT_WORKS.headline}
           </h2>
           <p className="mt-4 text-[16px] text-[#6B7280] leading-relaxed max-w-[600px] mx-auto">
-            No new account to manage your filing — we prep, you submit on incometax.gov.in yourself.
+            LastminuteITR helps prepare and check your information. You review it and submit the
+            return on the official Income Tax Portal.
           </p>
         </ScrollReveal>
 

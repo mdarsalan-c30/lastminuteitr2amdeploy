@@ -23,27 +23,27 @@ export const PAIN_POINTS = {
 
 export const HOW_IT_WORKS = {
   eyebrow: "How it works",
-  headline: "Four steps from upload to portal submit",
+  headline: "From Form 16 to a filing-ready summary",
   steps: [
     {
       step: "1",
-      title: "Upload Form 16 & AIS",
-      detail: "Securely upload your documents. We automatically parse salary, TDS, and interest, setting up your user persona perfectly.",
+      title: "Add your tax documents",
+      detail: "Start with Form 16 from your employer. Add AIS and other supporting documents when required.",
     },
     {
       step: "2",
-      title: "Real-time AI Calculations",
-      detail: "Our robust backend AI reconciles your data against AIS & 26AS, identifying any mismatches instantly.",
+      title: "Check your income and tax details",
+      detail: "We organise available information and highlight amounts that may be missing or need your review.",
     },
     {
       step: "3",
-      title: "AI Guided ITR Filing",
-      detail: "Compare the Old vs New regime interactively based on your numbers. Fix any discrepancies with our AI assistant.",
+      title: "Answer only what is missing",
+      detail: "Answer simple questions about rent, insurance, investments, loans, other income or trading activity. You can review and edit every answer.",
     },
     {
       step: "4",
-      title: "ITR Portal Guide Support",
-      detail: "Follow our interactive, copy-ready companion guide to submit and e-verify directly on incometax.gov.in.",
+      title: "Complete filing on the Income Tax Portal",
+      detail: "Follow screen-by-screen guidance, submit your return and complete e-verification on incometax.gov.in. LastminuteITR does not submit the return on your behalf.",
     },
   ],
 } as const;
@@ -91,7 +91,7 @@ export const INDIAN_USE_CASES = {
     },
     {
       title: "Refund anxiety",
-      detail: "Estimate refund or tax due — no guaranteed refund, just honest math.",
+      detail: "Review a preliminary refund or tax-due estimate before completing your return.",
     },
     {
       title: "Parents' return",
@@ -115,5 +115,5 @@ export const PROOF_DEDUCTIONS = {
 
 export const EXPANDED_FAQ = {
   eyebrow: "Questions",
-  headline: "Straight answers before you start",
+  headline: "Questions before you begin",
 } as const;

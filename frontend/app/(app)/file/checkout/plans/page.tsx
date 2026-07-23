@@ -133,7 +133,7 @@ function PlansContent() {
       {companionRedirect && (
         <Banner variant="info">
           Unlock the portal filing guide by choosing a plan below.{" "}
-          {CA_REVIEW_COMING_SOON} DIY and AI Smart are available now.
+          {CA_REVIEW_COMING_SOON} Essential and Guided are available now.
         </Banner>
       )}
 
@@ -192,7 +192,6 @@ function PlansContent() {
 
             // Price formatting
             const price = p.price ?? 0;
-            const originalPrice = p.originalPrice || Math.round(price * 1.45);
             const features = p.features || [
               "Unlimited draft profile calculations",
               "AI document parsing & Form 16 upload",
@@ -226,7 +225,7 @@ function PlansContent() {
                       {p.name}
                     </h3>
                     <p className="mt-1 text-sm font-medium text-slate-500">
-                      {p.subtitle || p.description || "Comprehensive filing support"}
+                      {p.description || "Comprehensive filing support"}
                     </p>
                   </div>
 
@@ -236,17 +235,10 @@ function PlansContent() {
                       <span className="text-4xl font-extrabold tracking-tight text-slate-900">
                         ₹{price}
                       </span>
-                      {originalPrice > price && (
-                        <span className="text-lg font-semibold text-slate-400 line-through">
-                          ₹{originalPrice}
-                        </span>
-                      )}
                     </div>
-                    {p.subtext && (
-                      <p className="mt-1 text-xs font-medium text-slate-500">
-                        {p.subtext}
-                      </p>
-                    )}
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      Including applicable GST
+                    </p>
                   </div>
 
                   {/* Features List */}

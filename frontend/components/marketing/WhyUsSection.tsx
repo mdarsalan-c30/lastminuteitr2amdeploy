@@ -24,6 +24,10 @@ export function WhyUsSection() {
           <p className="mt-3.5 text-[16px] text-[#6B7280] leading-relaxed max-w-[600px] mx-auto">
             {WHY_US.subhead}
           </p>
+          <p className="mt-2 text-[14px] text-[#6B7280] leading-relaxed max-w-[680px] mx-auto">
+            You remain in control. Review your information and submit the return yourself on the
+            official Income Tax Portal.
+          </p>
         </ScrollReveal>
 
         {/* 3 pillar cards */}
@@ -45,6 +49,11 @@ export function WhyUsSection() {
             </ScrollReveal>
           ))}
         </div>
+
+        <p className="mx-auto mb-8 max-w-[760px] text-center text-[12.5px] leading-relaxed text-[#6B7280]">
+          LastminuteITR is independently operated and is not affiliated with or authorised by the
+          Income Tax Department.
+        </p>
 
         {/* Ghost CTA */}
         <ScrollReveal delay={2} className="text-center">

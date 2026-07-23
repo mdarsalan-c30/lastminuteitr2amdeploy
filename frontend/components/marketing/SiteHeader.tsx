@@ -9,6 +9,7 @@ import { Menu } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { NavMenu } from "@/components/nav/NavMenu";
+import { trackEvent } from "@/lib/analytics";
 
 const PRODUCTS_LINKS = [
   { href: "/#", label: "Individual Tax Filing" },
@@ -37,7 +38,6 @@ const MOBILE_EXTRA = [
 
 export function SiteHeader() {
   const { scrolled } = useScrollNav();
-  const text ="🚀 File your ITR in minutes • AI-powered guidance • Secure filing • Maximum refund assistance";
   return (
     <header
       className={cn(
@@ -47,33 +47,22 @@ export function SiteHeader() {
           : "border-[#E6E8EC]/60 bg-[rgba(250,250,251,0.70)] backdrop-blur-md"
       )}
     >
-      {/* <div className="bg-[#0e5f63] text-white text-center py-2 px-4 text-sm font-medium tracking-wide">
-        Platform is now Live! Only 12 days left to file your ITR penalty-free (July 31st deadline)
-      </div> */}
-      <div className="relative overflow-hidden bg-[#0e5f63] py-2.5 text-white shadow-sm select-none">
-      {/* CSS Animation Keyframes */}
-      <style>{`
-        @keyframes marquee {
-          0% { transform: translateX(0%); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-marquee-smooth {
-          display: flex;
-          width: max-content;
-          animation: marquee 25s linear infinite;
-        }
-        .animate-marquee-smooth:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
-      {/* Marquee Ticker Loop */}
-      <div className="animate-marquee-smooth flex items-center gap-12 whitespace-nowrap text-sm font-medium tracking-wide">
-        <span className="flex items-center gap-2">{text}</span>
-        <span className="flex items-center gap-2">{text}</span>
-        <span className="flex items-center gap-2">{text}</span>
-        <span className="flex items-center gap-2">{text}</span>
+      <div className="bg-[#0e5f63] px-5 py-2.5 text-white shadow-sm">
+        <div className="mx-auto flex max-w-[1180px] items-center justify-center gap-4 text-center text-[13px] font-medium sm:justify-between sm:text-left">
+          <span>ITR filing for AY 2026–27 is open. Start early and avoid last-day errors.</span>
+          <Link
+            href="/file/onboarding/eligibility?step=about-you"
+            onClick={() =>
+              trackEvent("homepage_start_itr_clicked", {
+                location: "announcement",
+              })
+            }
+            className="hidden shrink-0 font-bold text-white underline decoration-white/60 underline-offset-4 hover:decoration-white sm:inline"
+          >
+            Start My ITR
+          </Link>
+        </div>
       </div>
-    </div>
       <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-4 px-8 h-[72px] max-[560px]:h-[64px] max-[560px]:px-5">
         <BrandLogo variant="wordmark" size="sm" priority />
 
@@ -100,12 +89,22 @@ export function SiteHeader() {
           <div className="hidden items-center gap-3.5 lg:flex">
             <Link
               href="/file/import/documents?source=form16"
+              onClick={() =>
+                trackEvent("homepage_form16_clicked", {
+                  location: "header",
+                })
+              }
               className="btn-pill-secondary py-[10px] px-5 text-[14px]"
             >
               Upload Form 16
             </Link>
             <Link
-              href="/#b2c-name"
+              href="/file/onboarding/eligibility?step=about-you"
+              onClick={() =>
+                trackEvent("homepage_start_itr_clicked", {
+                  location: "header",
+                })
+              }
               className="btn-pill-primary py-[10px] px-5 text-[14px]"
             >
               Start my return
@@ -132,13 +131,23 @@ export function SiteHeader() {
                 ))}
                 <div className="mt-3 flex flex-col gap-2.5 border-t border-border/60 pt-3">
                   <SheetCloseLink
-                    href="/#b2c-name"
+                    href="/file/onboarding/eligibility?step=about-you"
+                    onClick={() =>
+                      trackEvent("homepage_start_itr_clicked", {
+                        location: "mobile_header",
+                      })
+                    }
                     className="btn-pill-primary block w-full text-center py-3"
                   >
                     Start my return
                   </SheetCloseLink>
                   <SheetCloseLink
                     href="/file/import/documents?source=form16"
+                    onClick={() =>
+                      trackEvent("homepage_form16_clicked", {
+                        location: "mobile_header",
+                      })
+                    }
                     className="btn-pill-secondary block w-full text-center py-3"
                   >
                     Upload Form 16

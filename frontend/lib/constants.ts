@@ -1,8 +1,8 @@
-export const SITE_NAME = "LastMinute ITR";
+export const SITE_NAME = "LastminuteITR";
 export const SITE_TAGLINE =
-  "Prepare your ITR with AI — you file and submit on incometax.gov.in yourself";
+  "Guided ITR preparation — you review and submit on incometax.gov.in yourself";
 export const SITE_DESCRIPTION =
-  "Import-first ITR prep with lawful optimization, regime comparison, and mismatch checks before you file on the government portal. DPDP compliant.";
+  "Upload tax documents, review income and deductions, compare tax regimes, and prepare your return with screen-by-screen portal guidance.";
 
 export const ASSESSMENT_YEAR = "AY 2026-27";
 export const FINANCIAL_YEAR = "FY 2025-26";

@@ -19,7 +19,6 @@ import {
   UploadCloud,
   Coins,
   CreditCard,
-  ExternalLink,
   Menu,
   Calculator,
   X,
@@ -44,14 +43,14 @@ type SidebarStep = {
 };
 
 const SIDEBAR_STEPS: SidebarStep[] = [
-  { id: "family", label: "Filing For", href: "/file/family", match: ["/file/family"], icon: UsersRound },
+  { id: "family", label: "Who Are You Filing For?", href: "/file/family", match: ["/file/family"], icon: UsersRound },
   { id: "onboarding", label: "About You", href: "/file/start", match: ["/file/start", "/file/onboarding"], icon: UserCheck },
   { id: "import", label: "Add Documents", href: "/file/import/documents", match: ["/file/import"], icon: UploadCloud },
   {
-    id: "review",
+    id: "income",
     label: "Income & Tax Savings",
-    href: "/file/review",
-    match: ["/file/review", "/file/comprehensive", "/file/income", "/file/house-property", "/file/other", "/file/deductions"],
+    href: "/file/income",
+    match: ["/file/comprehensive", "/file/income", "/file/house-property", "/file/other", "/file/deductions"],
     icon: Coins,
     subItems: [
       { id: "salary", label: "Salary Income", href: "/file/income", statusKey: "salary" },
@@ -60,10 +59,10 @@ const SIDEBAR_STEPS: SidebarStep[] = [
       { id: "deductions", label: "Deductions", href: "/file/deductions", statusKey: "deductions" },
     ],
   },
-  { id: "regime", label: "Compare Tax Option", href: "/file/regime", match: ["/file/regime"], icon: Calculator },
+  { id: "regime", label: "Compare Tax Options", href: "/file/regime", match: ["/file/regime"], icon: Calculator },
+  { id: "review", label: "Final Tax Check", href: "/file/review", match: ["/file/review"], icon: Check },
   { id: "advisor", label: "Guided Tax Check", href: "/file/advisor", match: ["/file/advisor", "/file/cabrain"], icon: Sparkles },
-  { id: "checkout", label: "Choose a Plan", href: "/file/checkout/plans", match: ["/file/checkout"], icon: CreditCard },
-  { id: "companion", label: "File on Tax Portal", href: "/file/companion", match: ["/file/companion", "/file/support"], icon: ExternalLink },
+  { id: "checkout", label: "Plan & Portal Guide", href: "/file/checkout/plans", match: ["/file/checkout", "/file/companion", "/file/support"], icon: CreditCard },
 ];
 
 const SUMMARY_PATH_PREFIXES = [
@@ -96,19 +95,19 @@ function isSubItemActive(subId: string, pathname: string, activeNavSection?: str
 }
 
 function getBreadcrumbs(pathname: string) {
-  const parts = [{ label: "Filing Workspace", href: "/file" }];
+  const parts = [{ label: "Filing journey", href: "/file/family" }];
 
-  if (pathname.startsWith("/file/family")) parts.push({ label: "People I file for", href: "/file/family" });
-  else if (pathname.startsWith("/file/start") || pathname.startsWith("/file/onboarding")) parts.push({ label: "Get Started", href: "/file/start" });
-  else if (pathname.startsWith("/file/import")) parts.push({ label: "Import Documents", href: "/file/import/documents" });
-  else if (pathname.startsWith("/file/comprehensive")) parts.push({ label: "Comprehensive Profile", href: "/file/comprehensive" });
-  else if (pathname.startsWith("/file/regime")) parts.push({ label: "Regime Choice", href: "/file/regime" });
-  else if (pathname.startsWith("/file/review")) parts.push({ label: "Audit & Review", href: "/file/review" });
+  if (pathname.startsWith("/file/family")) parts.push({ label: "Who Are You Filing For?", href: "/file/family" });
+  else if (pathname.startsWith("/file/start") || pathname.startsWith("/file/onboarding")) parts.push({ label: "About You", href: "/file/start" });
+  else if (pathname.startsWith("/file/import")) parts.push({ label: "Add Documents", href: "/file/import/documents" });
+  else if (pathname.startsWith("/file/comprehensive")) parts.push({ label: "Income & Tax Savings", href: "/file/comprehensive" });
+  else if (pathname.startsWith("/file/regime")) parts.push({ label: "Compare Tax Options", href: "/file/regime" });
+  else if (pathname.startsWith("/file/review")) parts.push({ label: "Final Tax Check", href: "/file/review" });
   else if (pathname.startsWith("/file/checkout/payment")) {
-    parts.push({ label: "Checkout & Plans", href: "/file/checkout/plans" });
+    parts.push({ label: "Plan & Portal Guide", href: "/file/checkout/plans" });
     parts.push({ label: "Payment", href: "/file/checkout/payment" });
-  } else if (pathname.startsWith("/file/checkout")) parts.push({ label: "Checkout & Plans", href: "/file/checkout/plans" });
-  else if (pathname.startsWith("/file/companion")) parts.push({ label: "File on Portal", href: "/file/companion" });
+  } else if (pathname.startsWith("/file/checkout")) parts.push({ label: "Plan & Portal Guide", href: "/file/checkout/plans" });
+  else if (pathname.startsWith("/file/companion")) parts.push({ label: "Plan & Portal Guide", href: "/file/companion" });
 
   return parts;
 }
@@ -170,11 +169,15 @@ export function FilingLayout({
           : "missing";
     }
 
-    if (stepId === "review") {
+    if (stepId === "income") {
       const statuses = [sectionStatuses.salary, sectionStatuses.house, sectionStatuses.other, sectionStatuses.deductions];
-      if (statuses.every((s) => s === "complete") && mismatchResolved) return "complete";
+      if (statuses.every((s) => s === "complete")) return "complete";
       if (statuses.every((s) => s === "missing")) return "missing";
       return "partial";
+    }
+
+    if (stepId === "review") {
+      return mismatchResolved ? "complete" : "missing";
     }
 
     if (stepId === "checkout") {
@@ -183,17 +186,14 @@ export function FilingLayout({
       return "missing";
     }
 
-    if (stepId === "companion") {
-      if (pathname.startsWith("/file/companion")) return "partial";
-      if (pathname.startsWith("/file/done") || pathname.startsWith("/file/checkout/everify")) return "complete";
-      return "missing";
-    }
-
     return "missing";
   }
 
   const isCompanionLayout = variant === "companion";
   const isWideLayout = variant === "wide" || isCompanionLayout;
+  const isFamilyStep = pathname.startsWith("/file/family");
+  const isFocusedReviewStep = pathname === "/file/review";
+  const isFocusedStep = isFamilyStep || isFocusedReviewStep;
   const breadcrumbs = getBreadcrumbs(pathname);
 
   const sidebarContent = (
@@ -207,9 +207,9 @@ export function FilingLayout({
 
       <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-7 scrollbar-thin">
         <div>
-          <h1 className="px-3 mb-4 text-sm font-bold uppercase tracking-wide text-white/80">
+          <h2 className="px-3 mb-4 text-sm font-bold uppercase tracking-wide text-white/80">
             Filing Journey
-          </h1>
+          </h2>
 
           <ul className="space-y-1">
             {SIDEBAR_STEPS.map((step) => {
@@ -368,12 +368,14 @@ export function FilingLayout({
           </div>
         )}
 
-        <div className="flex items-center justify-center px-2 text-xs">
-          <Link href="/" className="flex items-center gap-1.5 font-medium text-white/70 hover:text-white transition-colors">
-            <LogOut className="size-3.5" />
-            <span>Exit to home</span>
-          </Link>
-        </div>
+        {!isFocusedStep && (
+          <div className="flex items-center justify-center px-2 text-xs">
+            <Link href="/" className="flex items-center gap-1.5 font-medium text-white/70 hover:text-white transition-colors">
+              <LogOut className="size-3.5" />
+              <span>Exit to home</span>
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -412,12 +414,26 @@ export function FilingLayout({
           </nav>
 
           <div className="flex items-center gap-3">
-            <div className="hidden md:block">
-              <FilingSessionControls compact />
-            </div>
-            <Link href="/" className="text-xs font-semibold text-slate-500 hover:text-slate-950 transition-colors hidden sm:block">
-              Back to Home
-            </Link>
+            {!isFocusedStep && (
+              <div className="hidden md:block">
+                <FilingSessionControls compact />
+              </div>
+            )}
+            {isFocusedStep ? (
+              <>
+                <span className="hidden text-xs font-medium text-slate-500 sm:inline">Saved</span>
+                <Link href="/help" className="text-xs font-semibold text-slate-500 transition-colors hover:text-slate-950">
+                  Help
+                </Link>
+                <Link href="/" className="text-xs font-semibold text-slate-500 transition-colors hover:text-slate-950">
+                  Exit
+                </Link>
+              </>
+            ) : (
+              <Link href="/" className="hidden text-xs font-semibold text-slate-500 transition-colors hover:text-slate-950 sm:block">
+                Back to Home
+              </Link>
+            )}
             <ProfileNavLink className="text-xs font-semibold" />
           </div>
         </header>
@@ -438,7 +454,7 @@ export function FilingLayout({
             {children}
           </main>
 
-          {!isWideLayout && (
+          {!isWideLayout && !isFocusedStep && (
             <aside className="hidden xl:block w-full shrink-0 self-start xl:sticky xl:top-20 xl:h-[calc(100vh-6rem)] xl:overflow-y-auto">
               <div className="h-full border border-slate-100 bg-white rounded-2xl shadow-sm overflow-hidden">
                 <ActiveAiCompanion />
@@ -467,7 +483,7 @@ export function FilingLayout({
         </div>
       )}
 
-      <FloatingGenie desktopHidden={!isCompanionLayout} />
+      {!isFocusedStep && <FloatingGenie desktopHidden={!isCompanionLayout} />}
     </div>
   );
 }

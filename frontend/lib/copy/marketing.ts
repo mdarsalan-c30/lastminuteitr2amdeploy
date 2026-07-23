@@ -1,14 +1,14 @@
-import { getEntryPriceInr, LAUNCH_OFFER } from "@/lib/marketing/offer";
+import { getEntryPriceInr } from "@/lib/marketing/offer";
 import { formatPlanPriceLabel } from "@/lib/marketing/pricing";
 
 export const HERO_HEADLINE =
-  "File your own ITR — Your Smart AI Tax Assistant.";
+  "File your own ITR with guided support.";
 
 export const HERO_HEADLINE_ACCENT =
   "Upload Form 16, AIS, capital gains, F&O — step-by-step guide on incometax.gov.in.";
 
 export const HERO_EMOTIONAL_HOOK =
-  "Upload your Form 16, AIS, capital gains, F&O, answer a few easy questions, and get a step-by-step guide to file directly on incometax.gov.in with a smart AI assistant by your side.";
+  "Upload Form 16 and AIS, review tax details, and get a step-by-step guide to file directly on incometax.gov.in.";
 
 export const HERO_TRUST_LINE =
   "Estimate only — ITD confirms your final refund · You file on incometax.gov.in · Not a government service";
@@ -30,11 +30,11 @@ export const HERO_CTAS = {
 
 export const PRICING_SECTION = {
   eyebrow: "Pricing",
-  headline: "Pay to unlock your portal guide",
+  headline: "Choose the level of guidance you need",
   subhead:
-    "Start free with estimates. Pay only to unlock your personalized incometax.gov.in walkthrough — you still file and e-verify yourself.",
+    "Start with a free estimate. Choose a plan when you are ready to prepare your filing summary and use the screen-by-screen Income Tax Portal guide.",
   helperLine:
-    "Prices in ₹ · Secure Razorpay checkout · We never store card details · Your files stay on the portal after you submit",
+    "One-time payment · No automatic subscription · Secure Razorpay checkout · Tax invoice available",
 } as const;
 
 export const PAYMENT_COPY = {
@@ -44,16 +44,10 @@ export const PAYMENT_COPY = {
   filesLine: "After filing, your return and acknowledgements live on the government portal.",
 } as const;
 
-export const OFFER_COPY = {
-  pill: `Plans from ${formatPlanPriceLabel(getEntryPriceInr())}`,
-  countdownPrefix: "Offer ends in",
-  expired: "Launch offer ended",
-} as const;
-
 export const FINAL_CTA = {
-  headline: "Ready before the deadline?",
+  headline: "Ready to prepare your return?",
   subhead:
-    "Import your documents, review eligible deductions, and unlock your portal guide when you're confident.",
-  primary: HERO_CTAS.startFiling.label,
-  secondary: "Start free estimate",
+    "Start with Form 16 or enter a few basic details. Review your income, tax-saving information and estimated tax before choosing a paid plan.",
+  primary: "Start My ITR",
+  secondary: "Start with Form 16",
 } as const;

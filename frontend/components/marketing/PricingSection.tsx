@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { PlanCard } from "@/components/pricing/PlanCard";
-import { CountdownOffer } from "@/components/marketing/CountdownOffer";
 import { ScrollReveal } from "@/components/motion/ScrollReveal";
 import { PRICING_SECTION } from "@/lib/copy/marketing";
-import { OFFER_HELPER_COPY } from "@/lib/marketing/offer";
 import { ASSESSMENT_YEAR, PRICING_PLANS } from "@/lib/constants";
+import { trackEvent } from "@/lib/analytics";
 
 export function PricingSection() {
   return (
@@ -27,22 +26,17 @@ export function PricingSection() {
           </p>
         </ScrollReveal>
 
-        {/* Countdown timer */}
-        <ScrollReveal className="flex justify-center mb-10" delay={2}>
-          <CountdownOffer />
-        </ScrollReveal>
-
         {/* Pricing cards */}
         <div className="mx-auto max-w-4xl grid grid-cols-1 gap-6 sm:grid-cols-2">
           {PRICING_PLANS.map((plan, i) => (
             <ScrollReveal key={plan.id} delay={3}>
               <div className={`relative flex h-full flex-col rounded-[16px] p-7 transition-all duration-300 hover:-translate-y-1 ${
-                plan.id === "ai_smart"
+                plan.id === "pro"
                   ? "border-[1.5px] border-[#0e5f63] bg-gradient-to-b from-[#F5F8FF] to-white shadow-[0_24px_48px_-24px_rgba(11,18,32,.18)]"
                   : "border-[1.5px] border-[#E6E8EC] bg-white hover:shadow-[0_24px_48px_-24px_rgba(11,18,32,.18)]"
               }`}>
                 {/* Popular badge */}
-                {plan.id === "ai_smart" && (
+                {plan.id === "pro" && (
                   <span
                     className="absolute -top-3 right-5 rounded-full px-3 py-1 text-[11px] font-bold text-white"
                     style={{ background: "#0e5f63" }}
@@ -75,6 +69,11 @@ export function PricingSection() {
                       ? "Join waitlist"
                       : "Choose plan"
                   }
+                  onCtaClick={() =>
+                    trackEvent("homepage_plan_clicked", {
+                      plan_id: plan.id,
+                    })
+                  }
                 />
               </div>
             </ScrollReveal>
@@ -83,13 +82,19 @@ export function PricingSection() {
 
         {/* Footer note */}
         <ScrollReveal className="mt-10 text-center text-[12.5px] text-[#6B7280] leading-[1.7] space-y-1" delay={4}>
-          <p>{OFFER_HELPER_COPY}</p>
+          <p>
+            Additional information may be required for investment and trading cases.
+          </p>
           <p>{PRICING_SECTION.helperLine}</p>
           <p className="flex flex-wrap items-center justify-center gap-3">
-            <span>Prices shown in Indian Rupees (₹), inclusive unless noted at checkout.</span>
+            <span>Prices shown in Indian Rupees (₹), including applicable GST.</span>
             <Link href="/refund-policy" className="font-medium text-[#0e5f63] hover:underline">
               See refund policy
             </Link>
+          </p>
+          <p>
+            Your submitted return and acknowledgement remain available through your account on
+            the official Income Tax Portal.
           </p>
         </ScrollReveal>
       </div>

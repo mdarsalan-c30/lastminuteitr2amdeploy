@@ -9,6 +9,9 @@ export interface DisplayPricing {
 }
 
 export function isLaunchOfferActive(now: Date = new Date()): boolean {
+  if (!LAUNCH_OFFER.enabled) {
+    return false;
+  }
   if (LAUNCH_OFFER.planId !== "pro" && LAUNCH_OFFER.planId !== "ai_smart") {
     return false;
   }
@@ -27,30 +30,12 @@ export function getDisplayPricing(
   now: Date = new Date()
 ): DisplayPricing {
   const current = getEffectivePrice(planId, now);
-  const plan = PLANS[planId];
-
-  if (planId === LAUNCH_OFFER.planId && isLaunchOfferActive(now)) {
-    return {
-      current,
-      original: LAUNCH_OFFER.originalPriceInr,
-      showOffer: true,
-    };
-  }
-
-  if (plan.originalPrice !== undefined) {
-    return {
-      current,
-      original: plan.originalPrice,
-      showOffer: true,
-    };
-  }
-
   return { current, showOffer: false };
 }
 
 export function formatPlanPriceLabel(amount: number): string {
   if (amount === 0) return `₹${amount}`;
-  return `₹${amount.toLocaleString("en-IN")} + GST`;
+  return `₹${amount.toLocaleString("en-IN")}`;
 }
 
 export function getPlanPriceLabel(planId: PlanId, now: Date = new Date()): string {

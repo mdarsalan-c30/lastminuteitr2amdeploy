@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { ScrollReveal } from "@/components/motion/ScrollReveal";
-import { FINAL_CTA, HERO_CTAS } from "@/lib/copy/marketing";
+import { FINAL_CTA } from "@/lib/copy/marketing";
+import { trackEvent } from "@/lib/analytics";
 
 export function FinalCta() {
   return (
@@ -28,20 +29,33 @@ export function FinalCta() {
               </p>
               <div className="flex flex-wrap items-center justify-center gap-4">
                 <Link
-                  href={HERO_CTAS.startFiling.href}
+                  href="/file/onboarding/eligibility?step=about-you"
+                  onClick={() =>
+                    trackEvent("homepage_start_itr_clicked", {
+                      location: "final_cta",
+                    })
+                  }
                   className="btn-pill-primary transition-all hover:!bg-[#EEF3FF]"
                   style={{ background: "#fff", color: "#0e5f63", boxShadow: "none" }}
                 >
                   {FINAL_CTA.primary}
                 </Link>
                 <Link
-                  href="/file/onboarding/eligibility?step=about-you"
+                  href="/file/import/documents?source=form16"
+                  onClick={() =>
+                    trackEvent("homepage_form16_clicked", {
+                      location: "final_cta",
+                    })
+                  }
                   className="btn-pill-secondary transition-all hover:!bg-[rgba(255,255,255,0.12)] hover:!border-white"
                   style={{ background: "transparent", borderColor: "rgba(255,255,255,0.35)", color: "#fff" }}
                 >
                   {FINAL_CTA.secondary}
                 </Link>
               </div>
+              <p className="mt-4 text-[12.5px] font-medium text-white/75">
+                No payment required to begin.
+              </p>
             </div>
           </div>
         </ScrollReveal>
