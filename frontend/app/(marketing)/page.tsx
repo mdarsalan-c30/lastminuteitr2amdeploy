@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { HomePageContent } from "@/components/marketing/HomePageContent";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { SiteHeader } from "@/components/marketing/SiteHeader";
+import { getPublishedHeroRibbon } from "@/lib/marketing/heroRibbon.server";
 import { pageMetadata } from "@/lib/seo";
+
+export const dynamic = "force-dynamic";
 
 const baseMetadata = pageMetadata({
   title: "File ITR Online with Smart-Tax Companion | LastminuteITR",
@@ -23,11 +26,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const heroRibbon = await getPublishedHeroRibbon();
+
   return (
     <>
       <SiteHeader />
-      <HomePageContent />
+      <HomePageContent heroRibbon={heroRibbon} />
       <SiteFooter />
     </>
   );

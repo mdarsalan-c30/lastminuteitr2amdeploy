@@ -10,16 +10,53 @@ import {
   B2B_HERO_HEADLINE_ACCENT,
   B2B_HERO_SUBTEXT,
 } from "@/lib/copy/b2b";
+import {
+  type HeroRibbonConfig,
+  shouldShowHeroRibbon,
+} from "@/lib/marketing/heroRibbon";
 import { cn } from "@/lib/utils";
 
-export function HeroSection({ mode, setMode }: { mode: "b2c" | "b2b"; setMode: (m: "b2c" | "b2b") => void }) {
-
-
+export function HeroSection({
+  mode,
+  setMode,
+  ribbon,
+}: {
+  mode: "b2c" | "b2b";
+  setMode: (m: "b2c" | "b2b") => void;
+  ribbon: HeroRibbonConfig | null;
+}) {
   return (
     <header
       className="relative overflow-hidden"
       style={{ padding: "32px 0 16px", background: "#FAFAFB" }}
     >
+      {shouldShowHeroRibbon(mode, ribbon) && (
+        <div
+          data-testid="hero-offer-ribbon"
+          className={cn(
+            "absolute right-2 top-2 z-20 rotate-3 drop-shadow-[0_12px_18px_rgba(14,95,99,0.18)]",
+            ribbon.showOnMobile
+              ? "block w-36 min-[700px]:w-48 min-[1100px]:w-64"
+              : "hidden w-64 min-[1100px]:block",
+            !ribbon.linkUrl && "pointer-events-none"
+          )}
+        >
+          {ribbon.linkUrl ? (
+            <a href={ribbon.linkUrl} aria-label={ribbon.altText}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={ribbon.imageUrl}
+                alt={ribbon.altText}
+                className="h-auto w-full transition-transform hover:scale-[1.03]"
+              />
+            </a>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={ribbon.imageUrl} alt={ribbon.altText} className="h-auto w-full" />
+          )}
+        </div>
+      )}
+
       {/* Background orbs */}
       <div
         className="hero-orb"
