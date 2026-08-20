@@ -13,13 +13,8 @@ import { ReviewsCarousel } from "@/components/marketing/ReviewsCarousel";
 import { ToolsSection } from "@/components/marketing/ToolsSection";
 import { B2BHowItWorks, B2BTools, B2BPricing, B2BFAQ } from "@/components/marketing/B2BMarketing";
 import { trackEvent } from "@/lib/analytics";
-import type { HeroRibbonConfig } from "@/lib/marketing/heroRibbon";
 
-export function HomePageContent({
-  heroRibbon,
-}: {
-  heroRibbon: HeroRibbonConfig | null;
-}) {
+export function HomePageContent() {
   const [mode, setMode] = useState<"b2c" | "b2b">("b2c");
 
   useEffect(() => {
@@ -31,7 +26,7 @@ export function HomePageContent({
       <LandingJsonLd />
       <main>
         {/* HERO */}
-        <HeroSection mode={mode} setMode={setMode} ribbon={heroRibbon} />
+        <HeroSection mode={mode} setMode={setMode} />
 
         {/* Dynamic Content based on Mode */}
         {mode === "b2c" ? (
